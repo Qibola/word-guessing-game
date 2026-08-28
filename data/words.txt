@@ -1,0 +1,21 @@
+# One word per line. Lines starting with '#' and blank lines are ignored.
+python
+guitar
+rocket
+puzzle
+jungle
+laptop
+orange
+silver
+window
+planet
+castle
+garden
+pencil
+turtle
+copper
+market
+bridge
+candle
+forest
+island
