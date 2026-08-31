@@ -1,29 +1,30 @@
 """Word guessing game (simplified Hangman).
 
-Day 1 is the scaffold: it loads the word list and shows the masked word.
-The guessing loop arrives on Day 3 — see the Roadmap in README.md.
+Day 2 adds the game state. This entry point sets up a round and shows what
+the state object knows; the interactive guess loop arrives on Day 3 — see the
+Roadmap in README.md.
 """
 
+from state import GameState
 from words import pick_word
 
-MAX_WRONG = 6
 
-
-def mask_word(secret, guessed):
-    """Show the secret with unguessed letters hidden as underscores.
-
-    >>> mask_word("cat", {"c"})
-    'c _ _'
-    """
-    return " ".join(letter if letter in guessed else "_" for letter in secret)
+def show_status(state):
+    """Print the board the player would see."""
+    print(f"Word:  {state.masked_word()}")
+    print(f"Wrong: {state.wrong_count}/{state.max_wrong} "
+          f"({state.guesses_left} left)")
+    if state.wrong_guesses:
+        print(f"Misses: {', '.join(sorted(state.wrong_guesses))}")
 
 
 def main():
-    secret = pick_word()
+    state = GameState(pick_word())
     print("Word Guessing Game")
     print("------------------")
-    print(f"The word has {len(secret)} letters: {mask_word(secret, set())}")
-    print(f"You will get {MAX_WRONG} wrong guesses once the game loop is built.")
+    print(f"The word has {len(state.secret)} letters.")
+    show_status(state)
+    print("\nThe interactive guess loop lands on Day 3.")
 
 
 if __name__ == "__main__":
