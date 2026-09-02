@@ -26,6 +26,10 @@ python3 game.py
 You'll be asked for one letter at a time. Repeat guesses are free, junk input
 just gets re-asked, and Ctrl-D (or Ctrl-C) gives up and reveals the word.
 
+Six wrong guesses end the round. The gallows drawing fills in as you miss,
+you get a warning on your last life, and the round closes with a win or lose
+message.
+
 To see what the word list loader does on its own:
 
 ```bash
@@ -49,5 +53,5 @@ ignored, so you can annotate the file freely.
 - [x] Day 1 — Scaffold: README, `.gitignore`, word list + `load_words()` / `pick_word()`
 - [x] Day 2 — Game state: secret word, guessed letters, wrong-guess count
 - [x] Day 3 — Guess loop with masked reveal and repeat-guess handling
-- [ ] Day 4 — Wrong-guess limit plus win / lose endings
+- [x] Day 4 — Wrong-guess limit plus win / lose endings
 - [ ] Day 5 — Play again + simple score, README polish
