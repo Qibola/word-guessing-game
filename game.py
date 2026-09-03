@@ -1,12 +1,12 @@
 """Word guessing game (simplified Hangman).
 
-Day 3 added the interactive guess loop. Day 4 closes the round out: the
-wrong-guess limit is now visible (a gallows drawing plus a warning on the
-last life) and the round ends with a proper win or lose message.
+Day 4 finished a single round. Day 5 turns one round into a session: after
+each round you are asked whether to play again, a small scoreboard adds up
+wins, losses and points, and the session prints a summary on the way out.
 """
 
 from state import GameState
-from words import pick_word
+from words import load_words, pick_word
 
 
 def show_status(state):
@@ -126,11 +126,119 @@ def play_round(state, input_fn=input):
     return state
 
 
+# --- scoring and the play-again loop --------------------------------------
+
+def score_for_round(state):
+    """Points for one finished round.
+
+    A win is worth one point per letter revealed, plus a bonus for every
+    unused life - guessing efficiently is worth more than guessing the whole
+    alphabet. A loss or a round the player quit scores nothing.
+    """
+    if not state.is_won:
+        return 0
+    return len(set(state.secret)) + 2 * state.guesses_left
+
+
+class Scoreboard:
+    """Running totals for a session of rounds."""
+
+    def __init__(self):
+        self.wins = 0
+        self.losses = 0
+        self.quits = 0
+        self.points = 0
+
+    @property
+    def rounds(self):
+        return self.wins + self.losses + self.quits
+
+    def record(self, state):
+        """Add one finished round. Returns the points it earned."""
+        result = outcome(state)
+        if result == "won":
+            self.wins += 1
+        elif result == "lost":
+            self.losses += 1
+        else:
+            self.quits += 1
+
+        earned = score_for_round(state)
+        self.points += earned
+        return earned
+
+    def summary(self):
+        """A one-line-per-fact recap of the session."""
+        if self.rounds == 0:
+            return "No rounds played."
+        lines = [
+            f"Rounds:  {self.rounds}",
+            f"Won:     {self.wins}",
+            f"Lost:    {self.losses}",
+        ]
+        if self.quits:
+            lines.append(f"Quit:    {self.quits}")
+        lines.append(f"Points:  {self.points}")
+        return "\n".join(lines)
+
+    def __repr__(self):
+        return (f"Scoreboard(wins={self.wins}, losses={self.losses}, "
+                f"quits={self.quits}, points={self.points})")
+
+
+def ask_play_again(prompt="Play again? [y/n] ", input_fn=input):
+    """Ask whether to play another round.
+
+    Accepts y/yes/n/no in any case, re-asks anything else, and treats the end
+    of input (Ctrl-D / Ctrl-C) as "no".
+    """
+    while True:
+        try:
+            raw = input_fn(prompt)
+        except (EOFError, KeyboardInterrupt):
+            print()
+            return False
+
+        answer = raw.strip().lower()
+        if answer in ("y", "yes"):
+            return True
+        if answer in ("n", "no"):
+            return False
+        print("Please answer y or n.")
+
+
+def play_session(words=None, input_fn=input, rng=None):
+    """Play rounds until the player stops, then report the scoreboard.
+
+    Returns the `Scoreboard` so tests (and any future caller) can inspect the
+    session without reading the printed output.
+    """
+    board = Scoreboard()
+    round_number = 1
+
+    while True:
+        print(f"\n--- Round {round_number} ---")
+        secret = pick_word(words) if rng is None else pick_word(words, rng=rng)
+        state = play_round(GameState(secret), input_fn=input_fn)
+        show_ending(state)
+
+        earned = board.record(state)
+        if earned:
+            print(f"+{earned} points (total {board.points}).")
+
+        if not ask_play_again(input_fn=input_fn):
+            break
+        round_number += 1
+
+    print("\nThanks for playing.")
+    print(board.summary())
+    return board
+
+
 def main():
     print("Word Guessing Game")
     print("------------------")
-    state = play_round(GameState(pick_word()))
-    show_ending(state)
+    play_session(load_words())
 
 
 if __name__ == "__main__":

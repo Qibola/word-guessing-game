@@ -2,7 +2,9 @@
 
 import unittest
 
-from game import gallows_art, outcome, play_round, read_guess, show_ending
+from game import (Scoreboard, ask_play_again, gallows_art, outcome,
+                  play_round, play_session, read_guess, score_for_round,
+                  show_ending)
 from state import GameState
 
 
@@ -92,6 +94,94 @@ class TestEndings(unittest.TestCase):
         play_round(state, input_fn=scripted_input(["x", "c", "a", "t"]))
         self.assertEqual(outcome(state), "won")
         self.assertEqual(state.guesses_left, 1)
+
+
+class TestScoring(unittest.TestCase):
+    def test_a_clean_win_scores_letters_plus_unused_lives(self):
+        state = GameState("cat")  # 3 unique letters, 6 lives, none used
+        play_round(state, input_fn=scripted_input(["c", "a", "t"]))
+        self.assertEqual(score_for_round(state), 3 + 2 * 6)
+
+    def test_repeated_letters_count_once(self):
+        state = GameState("otto")  # unique letters: o, t
+        play_round(state, input_fn=scripted_input(["o", "t"]))
+        self.assertEqual(score_for_round(state), 2 + 2 * 6)
+
+    def test_misses_cost_points(self):
+        state = GameState("cat")
+        play_round(state, input_fn=scripted_input(["x", "c", "a", "t"]))
+        self.assertEqual(score_for_round(state), 3 + 2 * 5)
+
+    def test_a_loss_scores_nothing(self):
+        state = GameState("cat", max_wrong=2)
+        play_round(state, input_fn=scripted_input(["x", "y"]))
+        self.assertEqual(score_for_round(state), 0)
+
+    def test_quitting_scores_nothing(self):
+        state = GameState("cat")
+        play_round(state, input_fn=scripted_input(["c"]))
+        self.assertEqual(score_for_round(state), 0)
+
+
+class TestScoreboard(unittest.TestCase):
+    def test_starts_empty(self):
+        board = Scoreboard()
+        self.assertEqual(board.rounds, 0)
+        self.assertEqual(board.points, 0)
+        self.assertEqual(board.summary(), "No rounds played.")
+
+    def test_counts_each_kind_of_outcome(self):
+        board = Scoreboard()
+
+        won = GameState("cat")
+        play_round(won, input_fn=scripted_input(["c", "a", "t"]))
+        lost = GameState("cat", max_wrong=1)
+        play_round(lost, input_fn=scripted_input(["x"]))
+        quit_early = GameState("cat")
+        play_round(quit_early, input_fn=scripted_input(["c"]))
+
+        self.assertEqual(board.record(won), 3 + 2 * 6)
+        self.assertEqual(board.record(lost), 0)
+        self.assertEqual(board.record(quit_early), 0)
+
+        self.assertEqual((board.wins, board.losses, board.quits), (1, 1, 1))
+        self.assertEqual(board.rounds, 3)
+        self.assertEqual(board.points, 15)
+        self.assertIn("Points:  15", board.summary())
+
+
+class TestAskPlayAgain(unittest.TestCase):
+    def test_accepts_yes_forms(self):
+        for answer in ("y", "Y", "yes", " YES "):
+            self.assertTrue(ask_play_again(input_fn=scripted_input([answer])))
+
+    def test_accepts_no_forms(self):
+        for answer in ("n", "N", "no", " No "):
+            self.assertFalse(ask_play_again(input_fn=scripted_input([answer])))
+
+    def test_reasks_on_junk(self):
+        reader = scripted_input(["maybe", "", "y"])
+        self.assertTrue(ask_play_again(input_fn=reader))
+
+    def test_end_of_input_means_no(self):
+        self.assertFalse(ask_play_again(input_fn=scripted_input([])))
+
+
+class TestPlaySession(unittest.TestCase):
+    def test_plays_two_rounds_then_stops(self):
+        # One word list of a single word, so both rounds have the same secret.
+        board = play_session(
+            words=["cat"],
+            input_fn=scripted_input(["c", "a", "t", "y", "c", "a", "t", "n"]),
+        )
+        self.assertEqual(board.wins, 2)
+        self.assertEqual(board.rounds, 2)
+        self.assertEqual(board.points, 2 * (3 + 2 * 6))
+
+    def test_stops_after_one_round_when_input_runs_out(self):
+        board = play_session(words=["cat"], input_fn=scripted_input(["c", "a", "t"]))
+        self.assertEqual(board.rounds, 1)
+        self.assertEqual(board.wins, 1)
 
 
 if __name__ == "__main__":
